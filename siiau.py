@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tempfile
 
+
 def limpia(lista):
     i=0
     while ( i<len(lista) ):
@@ -238,9 +239,15 @@ class Clase():
         
     def solapan(lista):
         return lista.pop().solapanConmigo(lista)
-
+    
+    def imprime(self):
+      return( "nrc: " + self.getClave()    + "\n" +
+              "clv: " + self.getClave()    + "\n" +
+              "Nom: " + self.getName()     + "\n" +
+              "Pro: " + self.getProfesor() + "\n"   )
+    
     def __str__(self):
-     return str(self.datos)
+      return str(self.datos)
 
 
 def Graficar( lista, show=False ):

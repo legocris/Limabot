@@ -87,14 +87,15 @@ class ParserUDG(HTMLParser):
         #limpia(datos) #Quizá es mejor no
 
 class Clase():
-    NRCDict = {}
-    ClaveDict = {} 
     #CU    NRC     Clave   Materia     Sec     CR  CUP     DIS     Ses/Hora/Dias/Edif/Aula/Periodo     Ses/Profesor
     Prop = { "CU":0, "NRC":1, "Clave":2, "Materia":3, "Sec":4, "CR":5, "CUP":6,"DIS":7, "Horario":8, "Profesor":9}
     Horarios = { "Ses":0, "Hora":1, "Dias":2, "Edif":3, "Aula":4, "Periodo":5 }
     Profesor = { "Ses":0, "Profesor":1}
 
-    def __init__(self, datos):
+    def __init__(self, datos, baseDatos):
+        #datos es el dato especifico de esta clase.
+        #baseDatos es el objeto en que se almacena la base de datos de todas las clases
+
         #Revisar que el formato esté bien
         try:
             if (len(datos) != len(Clase.Prop)):
@@ -135,14 +136,15 @@ class Clase():
             return
 
         #Ahora sí lo importante, añadir a las estructuras de datos para que la clase sea encontrada
-        self.datos=datos
+        self.baseDatos = baseDatos
+        self.datos = datos
 
-        Clase.NRCDict[ self.getNRC() ] = self
+        baseDatos.NRCDict[ self.getNRC() ] = self
 
-        if self.getClave() not in Clase.ClaveDict:
-            Clase.ClaveDict[ str(self.getClave())  ] = {}
+        if self.getClave() not in baseDatos.ClaveDict:
+            baseDatos.ClaveDict[ str(self.getClave())  ] = {}
 
-        Clase.ClaveDict[ str(self.getClave()) ][self.getNRC] = self
+        baseDatos.ClaveDict[ str(self.getClave()) ][self.getNRC] = self
 
 
             
@@ -154,7 +156,7 @@ class Clase():
     def getMateria(self):
         return( self.datos[3] )
 
-    def getName(self):
+    def getNombre(self):
         return self.getMateria()
 
     def getNRC(self):
@@ -171,52 +173,6 @@ class Clase():
 
     def getHorarios(self):
         return self.datos[8]
-
-    def isClave( code ):
-        return ( type(code)==str and code[0]=='I' )
-
-    def findNRC(nrc):
-        if ( type(nrc) == list ):
-            return [Clase.find(i) for i in nrc]
-        return Clase.NRCDict[nrc]
-
-    def findClave(clave):
-        if ( type(clave) == list ):
-            l = []
-            for c in clave:
-                l += list( Clase.ClaveDict[c].values() )
-            return l
-        return list( Clase.ClaveDict[clave].values() )
-
-    def findNested(code):
-        if ( type(code) == list ):
-            return [Clase.find(i) for i in code]
-        return Clase.findClave(code) if Clase.isClave(code) else Clase.findNRC(code)
-
-
-    def find( code ):
-        return unnest( Clase.findNested( code ) )
-
-
-    def coincidenDias(str1, str2):
-        if (str1=='' or str2==''):
-            return False
-
-        for c1 in str1:
-            if c1=="." or c1==" ":
-                continue
-            for c2 in str2:
-                if (c1==c2):
-                    return True
-        return False
-
-    def coincidenHoras(str1, str2):
-        if (str1=='' or str2==''):
-            return False
-        a = str1.rsplit('-')
-        b = str2.rsplit('-')
-
-        return max( a[0], b[0] ) <= min(a[1], b[1])
 
     def solapa(self, otro):
         for horario in self.getHorarios():
@@ -236,19 +192,41 @@ class Clase():
                 return True
 
         return lista.pop().solapanConmigo(lista)
-        
-    def solapan(lista):
-        return lista.pop().solapanConmigo(lista)
     
     def imprime(self):
-      return( "nrc: " + self.getClave()    + "\n" +
+      return( "nrc: " + self.getNRC()    + "\n" +
               "clv: " + self.getClave()    + "\n" +
-              "Nom: " + self.getName()     + "\n" +
+              "Nom: " + self.getNombre()     + "\n" +
               "Pro: " + self.getProfesor() + "\n"   )
     
     def __str__(self):
       return str(self.datos)
 
+    def isClave( code ):
+        return ( type(code)==str and code[0]=='I' )
+    
+    def coincidenDias(str1, str2):
+        if (str1=='' or str2==''):
+            return False
+
+        for c1 in str1:
+            if c1=="." or c1==" ":
+                continue
+            for c2 in str2:
+                if (c1==c2):
+                    return True
+        return False
+
+    def coincidenHoras(str1, str2):
+        if (str1=='' or str2==''):
+            return False
+        a = str1.rsplit('-')
+        b = str2.rsplit('-')
+
+        return max( a[0], b[0] ) <= min(a[1], b[1])
+    
+    def solapan(lista):
+        return lista.pop().solapanConmigo(lista)
 
 def Graficar( lista, show=False ):
     fig = plt.figure(num=1, clear=True)
@@ -275,7 +253,7 @@ def Graficar( lista, show=False ):
     data = []
     for i in range(N):
         a1 = i*(2*np.pi)/N
-        ax.text( np.cos(a1), np.sin(a1), lista[i].getName()+" "+lista[i].getNRC()+'\n'+lista[i].getProfesor(), horizontalalignment="center")
+        ax.text( np.cos(a1), np.sin(a1), lista[i].getNombre()+" "+lista[i].getNRC()+'\n'+lista[i].getProfesor(), horizontalalignment="center")
         ax.plot( np.cos(a1), np.sin(a1), "ro")
         for j in range(i+1, N):
             a2 = j*(2*np.pi)/N
@@ -306,27 +284,52 @@ def Graficar( lista, show=False ):
 
         return temp_file.name
 
-    
 
-def GetDataBase( ciclo = "202320" ):
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+class BaseDatos():
+    def __init__(self, ciclo = "202320"):
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
 
-    url = "https://siiauescolar.siiau.udg.mx/wal/sspseca.consulta_oferta?ciclop="+ciclo+"&cup=&majrp=LIMA&mostrarp=100000"
-    body=request.urlopen(url, context=ctx).read()
-    Datos = []
+        url = "https://siiauescolar.siiau.udg.mx/wal/sspseca.consulta_oferta?ciclop="+ciclo+"&cup=&majrp=LIMA&mostrarp=100000"
+        body=request.urlopen(url, context=ctx).read()
+        Datos = []
 
-    parser = ParserUDG()
-    parser.feed_datos( str(body), Datos )
+        parser = ParserUDG()
+        parser.feed_datos( str(body), Datos )
 
-    Datos = Datos[0]
+        self.Datos = Datos[0]
 
-    Clases = [Clase(i) for i in Datos]
-    limpia(Clases)
+        self.NRCDict = {}
+        self.ClaveDict = {} 
 
-Datos = []
-Clases = []
+        self.Clases = [Clase(d, self) for d in self.Datos]
+        limpia(self.Clases)
+
+
+    def findNRC(self, nrc):
+        if ( type(nrc) == list ):
+            return [self.find(i) for i in nrc]
+        return self.NRCDict[nrc]
+
+    def findClave(self, clave):
+        if ( type(clave) == list ):
+            l = []
+            for c in clave:
+                l += list( self.ClaveDict[c].values() )
+            return l
+        return list( self.ClaveDict[clave].values() )
+
+    def findNested(self, code):
+        if ( type(code) == list ):
+            return [self.find(i) for i in code]
+        return self.findClave(code) if Clase.isClave(code) else self.findNRC(code)
+
+
+    def find(self, code ):
+        return unnest( self.findNested( code ) )
+
+
 
 
 #GetDataBase()

@@ -1,0 +1,12 @@
+Cosas por agregarle al limabot:
+
+Imprimir el cosas por hacer
+Listas de Materias por n de semestre
+Consultar las materias
+Listas de optativas
+Imagen de la malla
+Graficar horario en Calendario
+Csv con horario
+Comandos modificadores
+Comandos multilinea
+Mostrar información de errores al usar los comandos

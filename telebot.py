@@ -76,7 +76,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += "La idea es poder visualizar qué materias se cruzan. "
     text += "De momento solo tengo la función de /grafo para este proposito. " 
     text += "Si dos materias se conectan en el grafo es que se puedn llevar juntas. "
-    text += "Los NRC debes apuntarlos uno por uno despues del comando, también puedes poner CLABEs. "
+    text += "Los NRC debes apuntarlos uno por uno despues del comando, también puedes poner CLAVES. "
     text += "\n\nComandos disponibles:"
     text += "\n/info #nrc1 #nrc2 #clave1 ..."
     text += "\n/grafo #nrc1 #nrc2 #clave1 ..."

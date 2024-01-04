@@ -4,9 +4,13 @@ Imprimir el cosas por hacer
 Listas de Materias por n de semestre
 Consultar las materias
 Listas de optativas
-Imagen de la malla
+#Imagen de la malla
 Graficar horario en Calendario
 Csv con horario
 Comandos modificadores
 Comandos multilinea
 Mostrar información de errores al usar los comandos
+Que las bases de datos (la información de las clases de cada ciclo escolar) se guarden localmente en carpetas
+Comando Malla debe mostrar la malla actual y está debe ser una base de datos local que muestre la información por semestre
+Caché de las bases de datos, para acelerar y por si algo le pasa a siiau.
+Visualización de info de materia en bonito

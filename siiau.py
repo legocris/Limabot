@@ -3,7 +3,9 @@ from urllib import request
 import ssl
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors 
 import tempfile
+
 
 
 def limpia(lista):
@@ -144,9 +146,7 @@ class Clase():
         if self.getClave() not in baseDatos.ClaveDict:
             baseDatos.ClaveDict[ str(self.getClave())  ] = {}
 
-        baseDatos.ClaveDict[ str(self.getClave()) ][self.getNRC] = self
-
-
+        baseDatos.ClaveDict[ str(self.getClave()) ][self.getNRC()] = self
             
 
     def get(self, prop):
@@ -158,6 +158,12 @@ class Clase():
 
     def getNombre(self):
         return self.getMateria()
+    
+    def getSiglas(self):
+        return "".join( [l[0] for l in self.getMateria().split() if (l!= "DE" and l!="DEL") ]  )
+    
+    def getProfesorCorto(self):
+        return " ".join( self.getProfesor().split()[-2:] )
 
     def getNRC(self):
         return( self.datos[1] )
@@ -173,6 +179,22 @@ class Clase():
 
     def getHorarios(self):
         return self.datos[8]
+    
+    def getCoordenadas(self):
+        coordenadas = []
+        for h in self.getHorarios():
+            dias = h[Clase.Horarios["Dias"] ]
+            hora = h[Clase.Horarios["Hora"] ]
+            
+            for j in range( len(dias)//2 ):
+                if dias[j*2] == '.':
+                    continue
+                
+                for i in range(int(hora[:2]), int(hora[5:7])+1):
+                    coordenadas.append( (i-7, j) )
+        
+        return coordenadas
+                
 
     def solapa(self, otro):
         for horario in self.getHorarios():
@@ -248,12 +270,12 @@ def Graficar( lista, show=False ):
 
     cntr = ax.contour(x1, x2, obj, [1], colors='black')
     #ax.clabel(cntr, fmt="%2.1f", use_clabeltext=True)
-
+    
     N = len( lista )
     data = []
     for i in range(N):
         a1 = i*(2*np.pi)/N
-        ax.text( np.cos(a1), np.sin(a1), lista[i].getNombre()+" "+lista[i].getNRC()+'\n'+lista[i].getProfesor(), horizontalalignment="center")
+        ax.text( np.cos(a1), np.sin(a1), lista[i].getSiglas()+" "+lista[i].getNRC()+'\n'+lista[i].getProfesorCorto(), horizontalalignment="center")
         ax.plot( np.cos(a1), np.sin(a1), "ro")
         for j in range(i+1, N):
             a2 = j*(2*np.pi)/N
@@ -267,7 +289,88 @@ def Graficar( lista, show=False ):
     ax.set_ylim(-1.05, 1.05)
     ax.axis('off')
 
+    # Create a temporary file to save the plot image
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+        #Save the plot as a PNG image
+        plt.gca().set_aspect('equal')
+        plt.savefig(temp_file.name)
+        print("Temporary file saved at:", temp_file.name)
 
+        if (show):
+            plt.show()
+
+        fig.clear() #Cuidado con los memory leaks
+        plt.close(fig)
+
+        return temp_file.name
+
+def getColor(indice, total, sat=0.8, val=0.9):
+    # Define HSV color values
+    hsv_color = (float(indice)/float(total), sat, val)
+
+    # Convert HSV to RGB
+    rgb_color = np.array(hsv_color)
+    rgb_color = np.clip(rgb_color, 0, 1)
+    rgb_color = colors.hsv_to_rgb(rgb_color)  # Use colors.hsv_to_rgb for conversion
+    
+    return rgb_color
+
+def GraficarCalendario( lista, show=False ):
+    # Create a list of hours
+    hours = [str(h)+":00" for h in range(7, 21)]
+
+    # Create a list of days
+    days = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
+
+    # Create a list of lists to store colors as strings
+    colors = [["white"] * len(days) for _ in hours]  # Initialize all cells as white
+    textos = [[""] * len(days) for _ in hours]  # Initialize all cells as white
+
+    for i, clase in enumerate(lista):
+        for coordenada in clase.getCoordenadas():
+            if (coordenada[0]<0): continue #Los horarios virtuales tienen coordenadas negativas
+            
+            if textos[coordenada[0]][coordenada[1]] == "":
+                colors[coordenada[0]][coordenada[1]] = getColor(i, len(lista))
+                textos[coordenada[0]][coordenada[1]] += clase.getSiglas()
+            else:
+                colors[coordenada[0]][coordenada[1]] = getColor(i, len(lista), sat=0.0, val=0.8)
+                textos[coordenada[0]][coordenada[1]] += "|"+clase.getSiglas()
+            
+            sat = 0.8
+
+
+    # Fill in the colors of the cells according to the topics
+    #colors[4][0]  = "blue"  # Maths on Mondays and Wednesdays, 10:00-12:00
+    #colors[0][0] = '#C7A2C8'
+
+    # Add more color assignments for other topics
+
+    # Create the plot
+    fig, ax = plt.subplots()
+
+    # Create the table
+    table = ax.table(cellText=textos, rowLabels=hours, colLabels=days, loc="center", cellLoc='center', cellColours=colors)
+
+    # Set the table properties
+    table.set_fontsize(10)
+    table.scale(1, 1.5)  # Adjust cell size
+
+    # Remove the table frame
+    #table._cells.set_edgecolor("white")
+    #for cell in table.get_celld().values():
+    #    cell.set_edgecolor("white")
+
+
+    # Set the title
+    ax.set_title("Calendario Semanal")
+    ax.axis('off')
+
+    # Adjust layout
+    #plt.tight_layout()
+
+    # Show the plot
+    #plt.show()
 
     # Create a temporary file to save the plot image
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
@@ -306,6 +409,21 @@ class BaseDatos():
         self.Clases = [Clase(d, self) for d in self.Datos]
         limpia(self.Clases)
 
+        self.malla={
+                'primero': ["I5919", "I5920", "I5921", "I5922", "I5923", "I5924", "I5940"],
+                'segundo': ["I5978", "I5926", "I5927", "I5928", "I5929", "I5937", "I5950"],
+                'tercero': ["I5925", "I5945", "I5946", "I5930", "I5931"],
+                'cuarto': ["I5941", "I5969", "I5970", "I5951", "I5952", "I5936"],
+                'quinto': ["I5948", "I5932", "I5933", "I5955", "I5956", "I5966"],
+                'sexto': ["I5942", "I5960", "I5934", "I5935", "I5953", "I5954", "I5967", "I5968"],
+                'septimo': ["I5943", "I5979", "I5961", "I5962", "I5938", "I5939", "I5971", "I5944"],
+                'octavo': ["I5947", "I5963", "I5964", "I5957", "I5958", "I5949", "I5965"],
+                'noveno': ["I5959", "I5972"],
+                'optativas': ["I5978","I5979", "I5972"],
+                'optativisimas': ["I5982","I5981","I5977","I5976", "I5980"],
+                'todo': list(self.ClaveDict.keys())
+                }
+
 
     def findNRC(self, nrc):
         if ( type(nrc) == list ):
@@ -322,14 +440,11 @@ class BaseDatos():
 
     def findNested(self, code):
         if ( type(code) == list ):
-            return [self.find(i) for i in code]
-        return self.findClave(code) if Clase.isClave(code) else self.findNRC(code)
-
+            return [ self.find(i) for i in code]
+        return self.find(self.malla[code]) if code in self.malla else self.findClave(code) if Clase.isClave(code) else self.findNRC(code)
 
     def find(self, code ):
         return unnest( self.findNested( code ) )
-
-
 
 
 #GetDataBase()
